@@ -3713,7 +3713,12 @@
       const evRenewableShare = evTotal > 0
         ? (solarToEv + battToEv) / evTotal
         : 0;
-      const evCls = evRenewableShare >= 0.8
+      // Exception: when the wallbox is powered by solar alone (battery and grid
+      // negligible), keep the line yellow so it matches the solar source.
+      const evSolarOnly = evTotal > 0 && (battToEv + gridToEv) < evTotal * 0.05;
+      const evCls = evSolarOnly
+        ? 'flow-solar'
+        : evRenewableShare >= 0.8
         ? 'flow-green'
         : this._dominantFlowClass('ev', solarToEv, battToEv, gridToEv, 'flow-green');
       const ev1Share = evDraw > 0 ? ev1Draw / evDraw : 0;
