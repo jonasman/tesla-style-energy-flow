@@ -3715,6 +3715,8 @@
       const evRenewableShare = evTotal > 0
         ? (solarToEv + battToEv) / evTotal
         : 0;
+      // Green only appears when the battery actually contributes; without a
+      // battery share the line falls back to the source-dominant colour.
       // Exception: when the wallbox is powered by solar alone (battery and grid
       // negligible), keep the line yellow so it matches the solar source.
       // Hysteresis: enter below 5 % non-solar share, leave above 10 %, so a share
@@ -3725,7 +3727,7 @@
       this._evSolarOnlyActive = evSolarOnly;
       const evCls = evSolarOnly
         ? 'flow-solar'
-        : evRenewableShare >= 0.8
+        : (evRenewableShare >= 0.8 && battToEv >= batteryMin)
         ? 'flow-green'
         : this._dominantFlowClass('ev', solarToEv, battToEv, gridToEv, 'flow-green');
       const ev1Share = evDraw > 0 ? ev1Draw / evDraw : 0;
