@@ -67,3 +67,40 @@ allocationCard.hass = { language: 'en', states: {
 assert.equal(labels.get('#flow-load-power'), '1.0 kW', 'whole-home load must exclude the separate heat pump draw');
 assert.equal(labels.get('#flow-heat-pump-power'), '1.0 kW');
 assert.ok(active.includes('line-heat-pump'), 'configured heat pump draw should light its own path');
+
+// EV line colour: solar-only stays yellow, with hysteresis around the 5 % boundary.
+// Each step is [solarW, gridW]; the 500 W base load is covered by solar first.
+function evLineClasses(steps, evW = 4000) {
+  const card = new Card();
+  card.setConfig({
+    language: 'en',
+    entities: { solar_power: 'sensor.solar', grid_power: 'sensor.grid', load_power: 'sensor.home', ev_power: 'sensor.ev' }
+  });
+  let cls = null;
+  card._setText = () => {};
+  card._activatePath = (id, c, watts, threshold) => {
+    if (id === 'line-wallbox-ev' && watts >= threshold) cls = c;
+  };
+  const state = (v) => ({ state: String(v), attributes: { unit_of_measurement: 'W' } });
+  return steps.map(([solarW, gridW]) => {
+    cls = null;
+    card.hass = { language: 'en', states: {
+      'sensor.solar': state(solarW), 'sensor.grid': state(gridW),
+      'sensor.home': state(500), 'sensor.ev': state(evW)
+    } };
+    return cls;
+  });
+}
+
+assert.deepEqual(evLineClasses([[4500, 0]]), ['flow-solar'], 'solar-only EV charging is yellow');
+assert.deepEqual(
+  evLineClasses([[4500, 0], [4340, 160], [4260, 240], [4340, 160], [4260, 240]]),
+  Array(5).fill('flow-solar'),
+  'a non-solar share crossing 5 % (but below 10 %) must not flicker'
+);
+assert.equal(evLineClasses([[1500, 3000]])[0], 'flow-broken', 'grid-dominated EV charging is not solar-only');
+assert.deepEqual(
+  evLineClasses([[4500, 0], [1500, 3000], [4260, 240], [4400, 100]]),
+  ['flow-solar', 'flow-broken', 'flow-green', 'flow-solar'],
+  'once out of solar-only it needs a share below 5 % to re-enter'
+);
