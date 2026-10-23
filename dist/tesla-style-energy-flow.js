@@ -3708,17 +3708,13 @@
       const battToHp = battToFlex * hpShareOfFlex;
       const gridToHp = gridToFlex * hpShareOfFlex;
       const hpTotal = solarToHp + battToHp + gridToHp;
-      // For EV charging: when >= 80 % of the wallbox draw comes from renewable sources
-      // (solar direct + battery), paint the line green regardless of which
-      // single source happens to be largest. Below that threshold fall back
-      // to the source-dominant color (yellow / green / red).
+      // EV line colour, in order of precedence:
+      //  1. Solar only (battery + grid share below 5 %, left above 10 %): yellow.
+      //  2. >= 80 % renewable AND the battery contributes at least battery_min_w: green.
+      //  3. Otherwise the source-dominant colour (yellow / green / red).
       const evRenewableShare = evTotal > 0
         ? (solarToEv + battToEv) / evTotal
         : 0;
-      // Green only appears when the battery actually contributes; without a
-      // battery share the line falls back to the source-dominant colour.
-      // Exception: when the wallbox is powered by solar alone (battery and grid
-      // negligible), keep the line yellow so it matches the solar source.
       // Hysteresis: enter below 5 % non-solar share, leave above 10 %, so a share
       // hovering around the boundary does not flip the colour on every update.
       const evNonSolarShare = evTotal > 0 ? (battToEv + gridToEv) / evTotal : 1;
